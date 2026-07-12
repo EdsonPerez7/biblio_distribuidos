@@ -1,0 +1,28 @@
+# Archivos de entorno y secretos
+.env
+.env*.local
+*.user
+
+# .NET / C# builds
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.userprefs
+*.suo
+.vs/
+.vscode/
+
+# Node.js
+node_modules/
+dist/
+npm-debug.log*
+
+# IDEs
+.idea/
+
+# AI tools
+.gemini/
+
+# Docker
+.dockerignore

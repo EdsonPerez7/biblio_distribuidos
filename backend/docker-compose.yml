@@ -1,0 +1,118 @@
+services:
+  # 1. Base de datos SQL Server (Optimizada para 4GB RAM)
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver_biblioteca
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+      - MSSQL_MEMORY_LIMIT_MB=1000 # Límite estricto de memoria para evitar congelar el servidor casero
+    ports:
+      - "1433:1433" # Permite poblar la base de datos desde fuera del contenedor
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+
+  # 2. Broker RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_biblioteca
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "5672:5672"     # Puerto de comunicación AMQP
+      - "15672:15672"   # Panel de administración de RabbitMQ
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  # 3. Cache Redis
+  redis:
+    image: redis:alpine
+    container_name: redis_biblioteca
+    ports:
+      - "6379:6379"
+
+  # 4. CDN local de recursos (portadas, PDFs)
+  cdn:
+    image: nginx:alpine
+    container_name: cdn_biblioteca
+    ports:
+      - "8080:80"
+    volumes:
+      - ./cdn-resources:/usr/share/nginx/html/recursos
+
+  # 5. Microservicio de Catálogo
+  catalogo-service:
+    build:
+      context: .
+      dockerfile: Catalogo.Service/Dockerfile
+    container_name: catalogo_service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development # Habilita logs detallados
+      - ConnectionStrings__cnnNeoLibroDB=Server=sqlserver;Database=BibliotecaFISI;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;
+      - ConnectionStrings__WriteConnection=Server=sqlserver;Database=BibliotecaFISI;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;
+      - ConnectionStrings__ReadOnlyConnection=Server=sqlserver;Database=BibliotecaFISI;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;
+      - Redis__Configuration=redis:6379
+    depends_on:
+      - sqlserver
+      - redis
+
+  # 6. Monolito
+  neolibro-webapi:
+    build:
+      context: .
+      dockerfile: NeoLibro.WebAPI/Dockerfile
+    container_name: neolibro_webapi
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development # Habilita Swagger y logs detallados
+      - ConnectionStrings__cnnNeoLibroDB=Server=sqlserver;Database=BibliotecaFISI;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;
+      - ConnectionStrings__WriteConnection=Server=sqlserver;Database=BibliotecaFISI;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;
+      - ConnectionStrings__ReadOnlyConnection=Server=sqlserver;Database=BibliotecaFISI;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;
+      - Services__CatalogoUrl=http://catalogo-service:8080/
+      - RabbitMQ__Host=rabbitmq
+      - Redis__Configuration=redis:6379
+    depends_on:
+      - sqlserver
+      - rabbitmq
+      - redis
+
+  # 7. Worker de Notificaciones
+  notificaciones-service:
+    build:
+      context: .
+      dockerfile: Notificaciones.Service/Dockerfile
+    container_name: notificaciones_service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - RabbitMQ__Host=rabbitmq
+    depends_on:
+      - rabbitmq
+
+  # 8. API Gateway (YARP)
+  apigateway:
+    build:
+      context: .
+      dockerfile: ApiGateway/Dockerfile
+    container_name: api_gateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ReverseProxy__Clusters__monolitoCluster__Destinations__monolito__Address=http://neolibro-webapi:8080
+      - ReverseProxy__Clusters__catalogoCluster__Destinations__catalogo__Address=http://catalogo-service:8080
+    depends_on:
+      - neolibro-webapi
+      - catalogo-service
+
+  # 9. Frontend (React)
+  frontend:
+    build:
+      context: ../frontend/frontend
+      dockerfile: Dockerfile
+    container_name: frontend_biblioteca
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - apigateway
+
+volumes:
+  sqlserver_data:
+  rabbitmq_data:
