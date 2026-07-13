@@ -60,7 +60,7 @@ const Reports: React.FC = () => {
     const [datos, setDatos] = useState<ReporteData | null>(null);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [configuracionReportes, setConfiguracionReportes] = useState<{
+    const [_configuracionReportes, setConfiguracionReportes] = useState<{
         periodoPorDefecto: number;
         topNLibros: number;
         topNUsuarios: number;
@@ -205,7 +205,7 @@ const Reports: React.FC = () => {
                 <div className="error-state">
                     <h2>Error al cargar reportes</h2>
                     <p>{error}</p>
-                    <button onClick={cargarDatos} className="btn-primary">
+                    <button onClick={() => cargarDatos()} className="btn-primary">
                         <RefreshCw size={20} />
                         Reintentar
                     </button>
@@ -254,7 +254,7 @@ const Reports: React.FC = () => {
                         </button>
                         <button 
                             className="btn-refresh"
-                            onClick={cargarDatos}
+                            onClick={() => cargarDatos()}
                         >
                             <RefreshCw size={20} />
                             Actualizar
