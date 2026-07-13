@@ -90,7 +90,7 @@ def hash_contrasena(contrasena):
     return hashlib.sha256(contrasena.encode('utf-8')).hexdigest()
 
 def crear_administrador():
-    """Crear un administrador inicial"""
+    """Crear un administrador y un usuario comun inicial"""
     conn = conectar_bd()
     if not conn:
         return
@@ -98,49 +98,57 @@ def crear_administrador():
     try:
         cursor = conn.cursor()
         
-        # Verificar si ya existe un administrador
-        cursor.execute("SELECT COUNT(*) FROM Usuarios WHERE Rol = 'Administrador'")
-        admin_count = cursor.fetchone()[0]
-        
-        if admin_count > 0:
-            print("Ya existe al menos un administrador en la base de datos.")
-            cursor.execute("SELECT CodigoUniversitario, Nombre, EmailInstitucional FROM Usuarios WHERE Rol = 'Administrador'")
-            admins = cursor.fetchall()
-            print("\nAdministradores existentes:")
-            for admin in admins:
-                print(f"  - Código: {admin[0]} | Nombre: {admin[1]} | Email: {admin[2]}")
-            return
-        
-        # Datos del administrador
-        codigo = "12345678"  # 8 dígitos
-        nombre = "Administrador del Sistema"
-        email = "admin@unmsm.edu.pe"  # @unmsm.edu.pe
-        # Contraseña establecida en el código
-        contrasena_plana = "Admin123!"  # Cambia esta contraseña según necesites
-        contrasena_hash = hash_contrasena(contrasena_plana)
-        
+        # Eliminar usuarios anteriores si existen para evitar conflictos
+        cursor.execute("DELETE FROM Usuarios WHERE EmailInstitucional IN ('admin@unmsm.edu.pe', 'usuario1@unmsm.edu.pe')")
+        conn.commit()
+
+        # 1. Crear Administrador
+        codigo_admin = "11111111"
+        nombre_admin = "Administrador del Sistema"
+        email_admin = "admin@unmsm.edu.pe"
+        contrasena_admin = "admin"
+        hash_admin = hash_contrasena(contrasena_admin)
+
         print("=== CREANDO ADMINISTRADOR INICIAL ===")
-        print(f"Código Universitario: {codigo}")
-        print(f"Nombre: {nombre}")
-        print(f"Email: {email}")
-        print(f"Contraseña: {contrasena_plana}")
-        print("=" * 50)
+        print(f"Código Universitario: {codigo_admin}")
+        print(f"Nombre: {nombre_admin}")
+        print(f"Email: {email_admin}")
+        print(f"Contraseña: {contrasena_admin}")
         
-        # Insertar administrador
         cursor.execute("""
             INSERT INTO Usuarios (CodigoUniversitario, Nombre, EmailInstitucional, ContrasenaHash, Rol, Estado, FechaRegistro, FechaUltimaActualizacionContrasena)
             VALUES (?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
-        """, (codigo, nombre, email, contrasena_hash, 'Administrador', 1))
+        """, (codigo_admin, nombre_admin, email_admin, hash_admin, 'Administrador', 1))
         
+        # 2. Crear Usuario Comun
+        codigo_user = "22222222"
+        nombre_user = "Usuario Comun"
+        email_user = "usuario1@unmsm.edu.pe"
+        contrasena_user = "asdf"
+        hash_user = hash_contrasena(contrasena_user)
+
+        print("\n=== CREANDO USUARIO COMUN INICIAL ===")
+        print(f"Código Universitario: {codigo_user}")
+        print(f"Nombre: {nombre_user}")
+        print(f"Email: {email_user}")
+        print(f"Contraseña: {contrasena_user}")
+        print("=" * 50)
+
+        cursor.execute("""
+            INSERT INTO Usuarios (CodigoUniversitario, Nombre, EmailInstitucional, ContrasenaHash, Rol, Estado, FechaRegistro, FechaUltimaActualizacionContrasena)
+            VALUES (?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
+        """, (codigo_user, nombre_user, email_user, hash_user, 'Estudiante', 1))
+
         conn.commit()
         
-        print("[OK] Administrador creado exitosamente!")
-        print("\n=== INFORMACIÓN DE ACCESO ===")
-        print(f"Usuario: {codigo}")
-        print(f"Contraseña: {contrasena_plana}")
-        print(f"Email: {email}")
-        print("\n[IMPORTANTE] Guarda esta información de forma segura.")
-        print("   Puedes cambiar la contraseña desde la aplicación.")
+        print("\n[OK] Usuarios de prueba creados exitosamente!")
+        print("\n=== CREDENCIALES DE ACCESO ===")
+        print("1. ROL ADMINISTRADOR:")
+        print("   Usuario/Email en login: admin (se autocompleta como admin@unmsm.edu.pe)")
+        print("   Contraseña: admin")
+        print("\n2. ROL ESTUDIANTE:")
+        print("   Usuario/Email en login: usuario1 (se autocompleta como usuario1@unmsm.edu.pe)")
+        print("   Contraseña: asdf")
         
     except Exception as e:
         print(f"Error: {e}")
@@ -149,6 +157,6 @@ def crear_administrador():
         conn.close()
 
 if __name__ == "__main__":
-    print("Creando administrador inicial...")
+    print("Creando usuarios iniciales...")
     crear_administrador()
     print("Proceso completado")
