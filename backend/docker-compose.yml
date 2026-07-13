@@ -37,7 +37,7 @@ services:
     image: nginx:alpine
     container_name: cdn_biblioteca
     ports:
-      - "8080:80"
+      - "8081:80"
     volumes:
       - ./cdn-resources:/usr/share/nginx/html/recursos
 
