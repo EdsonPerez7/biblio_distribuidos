@@ -11,19 +11,57 @@ import hashlib
 
 def conectar_bd():
     """Conectar a la base de datos con múltiples intentos"""
+    import os
+    
+    # Intentar leer contraseña del archivo .env
+    password = None
+    env_paths = ['../backend/.env', 'backend/.env', '.env']
+    for p in env_paths:
+        if os.path.exists(p):
+            try:
+                with open(p, 'r') as f:
+                    for line in f:
+                        if line.startswith('MSSQL_SA_PASSWORD='):
+                            password = line.split('=', 1)[1].strip()
+                            break
+            except Exception:
+                pass
+        if password:
+            break
+
     # Lista de posibles configuraciones de servidor
     servidores = [
         'localhost',  # SQL Server por defecto
+        'localhost,1433', # Puerto Docker mapeado
+        '127.0.0.1,1433',
         'localhost\\SQLEXPRESS',  # SQL Server Express
-        'localhost\\MSSQLSERVER',  # SQL Server por defecto (instancia nombrada)
-        '.\\SQLEXPRESS',  # SQL Server Express (notación corta)
-        '.',  # Instancia local (notación corta)
+        '.',  # Instancia local
     ]
     
     # Intentar con cada configuración de servidor
     for servidor in servidores:
+        # Si tenemos contraseña, probar primero con autenticación SQL Server
+        if password:
+            for driver in ['{ODBC Driver 18 for SQL Server}', '{ODBC Driver 17 for SQL Server}']:
+                try:
+                    print(f"Intentando conectar a: {servidor} con sa usando {driver}...")
+                    conn = pyodbc.connect(
+                        f'DRIVER={driver};'
+                        f'SERVER={servidor};'
+                        'DATABASE=BibliotecaFISI;'
+                        'UID=sa;'
+                        f'PWD={password};'
+                        'TrustServerCertificate=yes;'
+                        'Connection Timeout=5;'
+                    )
+                    print(f"✅ Conexión exitosa a: {servidor}")
+                    return conn
+                except pyodbc.Error:
+                    continue
+
+        # Intentar con Trusted Connection (Autenticación de Windows)
         try:
-            print(f"Intentando conectar a: {servidor}...")
+            print(f"Intentando conectar a: {servidor} con Trusted Connection...")
             conn = pyodbc.connect(
                 'DRIVER={ODBC Driver 17 for SQL Server};'
                 f'SERVER={servidor};'
@@ -34,26 +72,17 @@ def conectar_bd():
             print(f"✅ Conexión exitosa a: {servidor}")
             return conn
         except pyodbc.Error as e:
-            # Continuar con el siguiente servidor si falla
             continue
         except Exception as e:
-            # Para otros errores, también continuar
             continue
     
     # Si todos los intentos fallaron, mostrar mensaje de ayuda
     print("\n❌ Error: No se pudo conectar a SQL Server con ninguna configuración.")
     print("\nPosibles soluciones:")
-    print("1. Verifica que SQL Server esté ejecutándose:")
-    print("   - Abre 'SQL Server Configuration Manager'")
-    print("   - Verifica que el servicio 'SQL Server (MSSQLSERVER)' o 'SQL Server (SQLEXPRESS)' esté en estado 'Running'")
-    print("\n2. Si usas SQL Server Express, el nombre de instancia puede ser 'localhost\\SQLEXPRESS'")
-    print("\n3. Si usas una instancia personalizada, puedes modificar el script para usar:")
-    print("   - 'localhost\\NOMBRE_INSTANCIA' (para instancia nombrada)")
-    print("   - 'localhost,1433' (para puerto específico)")
-    print("\n4. Verifica que la base de datos 'BibliotecaFISI' exista")
-    print("\n5. Verifica que tengas permisos de autenticación de Windows")
-    print("\nPara más ayuda, ejecuta el siguiente comando para ver instancias disponibles:")
-    print("   Get-Service -Name '*SQL*' | Format-Table")
+    print("1. Verifica que SQL Server esté ejecutándose en Docker (sqlserver_biblioteca)")
+    print("2. Asegúrate de tener instalado un controlador ODBC para SQL Server:")
+    print("   En Ubuntu: sudo apt-get install msodbcsql17 o msodbcsql18")
+    print("3. Verifica que la base de datos 'BibliotecaFISI' exista en el contenedor")
     return None
 
 def hash_contrasena(contrasena):
