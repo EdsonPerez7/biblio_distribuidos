@@ -632,13 +632,13 @@ const Catalogo: React.FC<CatalogoProps> = (props) => {
                                 {/* Portada simulada desde la CDN */}
                                 <div style={{ flex: '0 0 150px', textAlign: 'center', margin: '0 auto' }}>
                                     <img 
-                                        src={`http://${window.location.hostname}:8081/recursos/portadas/portada-ejemplo.png`} 
+                                        src="/recursos/portadas/portada-ejemplo.png" 
                                         alt="Portada del libro" 
                                         style={{ width: '100%', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.15)', objectFit: 'cover' }} 
                                     />
                                     <div style={{ marginTop: '15px' }}>
                                         <a 
-                                            href={`http://${window.location.hostname}:8081/recursos/pdf/libro-ejemplo.pdf`} 
+                                            href="/recursos/pdf/libro-ejemplo.pdf" 
                                             target="_blank" 
                                             rel="noopener noreferrer" 
                                             className="btn-compact" 
